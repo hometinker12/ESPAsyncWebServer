@@ -1,9 +1,16 @@
+#ifdef ESP32
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <AsyncTCP.h>
+#include <SPIFFS.h>
+#else
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ESPAsyncTCP.h>
+#include <Hash.h>
+#endif
 #include <ArduinoOTA.h>
 #include <FS.h>
-#include <SPIFFS.h>
-#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFSEditor.h>
 
@@ -58,12 +65,12 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT)?"text":"binary", info->index, info->index + len);
 
       if(info->opcode == WS_TEXT){
-        for(size_t i=0; i < len; i++) {
+        for(size_t i=0; i < info->len; i++) {
           msg += (char) data[i];
         }
       } else {
         char buff[3];
-        for(size_t i=0; i < len; i++) {
+        for(size_t i=0; i < info->len; i++) {
           sprintf(buff, "%02x ", (uint8_t) data[i]);
           msg += buff ;
         }
@@ -94,6 +101,11 @@ const char* http_password = "admin";
 void setup(){
   Serial.begin(115200);
   Serial.setDebugOutput(true);
+#ifdef ESP32
+  WiFi.setHostname(hostName);
+#else
+  WiFi.hostname(hostName);
+#endif  
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(hostName);
   WiFi.begin(ssid, password);
@@ -134,9 +146,12 @@ void setup(){
   });
   server.addHandler(&events);
 
+#ifdef ESP32
   server.addHandler(new SPIFFSEditor(SPIFFS, http_username,http_password));
-
-  server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
+#else
+  server.addHandler(new SPIFFSEditor(http_username,http_password));
+#endif
+server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", String(ESP.getFreeHeap()));
   });
 
