@@ -1,7 +1,12 @@
+#ifdef ESP32
 #include <WiFi.h>
 #include <AsyncTCP.h>
+#else
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#endif
 #include <DNSServer.h>
-#include "ESPAsyncWebServer.h"
+#include <ESPAsyncWebServer.h>
 
 DNSServer dnsServer;
 AsyncWebServer server(80);
